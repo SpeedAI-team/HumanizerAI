@@ -6,7 +6,7 @@
 
 本文档描述了多个接口的使用方法，这些接口用于文档上传、文本重写、降AI处理和文件下载。接口提供了基于WebSocket的实时文档处理，以及基于HTTP的文本处理和文件下载功能。
 
-注意：请将test_api更换为实际的api key。
+注意：请将test_api更换为实际的api key。api key请联系wx：speed-ai
 
 ### 计费说明
 
