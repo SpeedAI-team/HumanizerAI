@@ -26,6 +26,12 @@
   <option value="weipu">Weipu</option>
   <option value="gezida">Gezida</option>
 </select>
+<br>
+<label for="langSelect">Choose lang:</label>
+<select id="langSelect">
+  <option value="Chinese">Chinese</option>
+  <option value="English">English</option>
+</select>
 <br><br>
 <button id="processText">Process Text</button>
 
@@ -38,6 +44,7 @@
   const inputText = document.getElementById('inputText');
   const modeSelect = document.getElementById('modeSelect');
   const typeSelect = document.getElementById('typeSelect');
+  const langSelect = document.getElementById('langSelect');
   const processText = document.getElementById('processText');
   const output = document.getElementById('output');
   const downloadLink = document.getElementById('downloadLink');
@@ -140,6 +147,7 @@
     const text = inputText.value;
     const mode = modeSelect.value;
     const type = typeSelect.value;
+    const lang = langSelect.value;
 
     if (!text) {
       alert("Please enter some text to process.");
@@ -156,7 +164,7 @@
       body: JSON.stringify({
         apikey: "test_api",  // Replace with the actual API key
         info: text,
-        lang: "Chinese",  // You can change this to 'English' if needed
+        lang: lang,  // You can change this to 'English' if needed
         type: type,  // zhiwang, weipu, gezida
       }),
     })
