@@ -7,65 +7,87 @@
 </head>
 <body>
 
-<h2>Upload Word Document (.doc or .docx)</h2>
-<input type="file" id="fileInput" accept=".doc, .docx" />
-<br><br>
+<h1>SpeedAI文档与文本处理示例</h1>
 
-<h2>Text Rewrite / De-AI</h2>
-<textarea id="inputText" rows="5" cols="50" placeholder="Enter text here..."></textarea>
-<br>
-<label for="modeSelect">Choose Mode:</label>
+
+<label for="apiKey">API Key:</label>
+<input type="text" id="apiKey" placeholder="Enter your API key" /><br><br>
+
+<label for="modeSelect">选择模型:</label>
 <select id="modeSelect">
-  <option value="rewrite">Rewrite</option>
-  <option value="deai">De-AI</option>
-</select>
-<br>
-<label for="typeSelect">Choose Type:</label>
+  <option value="rewrite">降重</option>
+  <option value="deai">降AIGC</option>
+</select><br><br>
+
+<label for="typeSelect">选择平台:</label>
 <select id="typeSelect">
   <option value="zhiwang">Zhiwang</option>
   <option value="weipu">Weipu</option>
   <option value="gezida">Gezida</option>
-</select>
-<br>
-<label for="langSelect">Choose lang:</label>
-<select id="langSelect">
-  <option value="Chinese">Chinese</option>
-  <option value="English">English</option>
-</select>
-<br><br>
-<button id="processText">Process Text</button>
+</select><br><br>
 
-<h3>Processing Log</h3>
+<label for="languageSelect">选择语言:</label>
+<select id="languageSelect">
+  <option value="Chinese">中文</option>
+  <option value="English">英文</option>
+</select><br><br>
+
+<label for="changedOnly">是否仅返回修改的段落（用于流式文档处理）:</label>
+<input type="checkbox" id="changedOnly" /><br><br>
+
+<label for="skipEnglish">Skip English:</label>
+<input type="checkbox" id="skipEnglish" checked /><br><br>
+
+<h2>上传文档 (.doc or .docx)</h2>
+
+<input type="file" id="fileInput" accept=".doc, .docx" /><br><br>
+<button id="uploadDocument">流式处理文档</button>
+<button id="uploadDocumentPost">非流式处理文档</button>
+
+<h2>文本重写、降AI</h2>
+<textarea id="inputText" rows="5" cols="50" placeholder="Enter text here..."></textarea>
+<br>
+<button id="processText">处理文字</button>
+
+<h3>处理日志</h3>
 <div id="output"></div>
-<a id="downloadLink" style="display:none;" href="#" download>Download Modified Document</a>
 
 <script>
   const fileInput = document.getElementById('fileInput');
-  const inputText = document.getElementById('inputText');
+  const apiKeyInput = document.getElementById('apiKey');
   const modeSelect = document.getElementById('modeSelect');
   const typeSelect = document.getElementById('typeSelect');
-  const langSelect = document.getElementById('langSelect');
-  const processText = document.getElementById('processText');
+  const changedOnlyCheckbox = document.getElementById('changedOnly');
+  const skipEnglishCheckbox = document.getElementById('skipEnglish');
+  const uploadDocumentButton = document.getElementById('uploadDocument');
+  const uploadDocumentPostButton = document.getElementById('uploadDocumentPost');
+  const inputText = document.getElementById('inputText');
+  const processTextButton = document.getElementById('processText');
   const output = document.getElementById('output');
-  const downloadLink = document.getElementById('downloadLink');
+  const languageSelect = document.getElementById('languageSelect');
+  let docId;
 
-  let ws;
-
-  // Function for handling document upload via WebSocket
-  fileInput.onchange = function () {
+  // Stream processing via WebSocket
+  uploadDocumentButton.onclick = function () {
     const file = fileInput.files[0];
     if (file) {
       ws = new WebSocket('wss://api.speedai.chat/v1/docx');
 
       ws.onopen = function () {
         // When the WebSocket connection opens, send the file details
+        const file = fileInput.files[0];
+        const apikey = apiKeyInput.value;
+        const mode = modeSelect.value;
+        const type_ = typeSelect.value;
+        const changedOnly = changedOnlyCheckbox.checked;
+        const skipEnglish = skipEnglishCheckbox.checked;
         const fileDetails = {
           FileName: file.name,
-          apikey: "test_api",  // Replace with the actual API key
-          mode: "deai",       // Replace with the actual mode
-          type: "weipu",       // Replace with the actual type
-          changed_only: true, // Set true/false based on requirement
-          skip_english: false
+          apikey: apikey,  // Replace with the actual API key
+          mode: mode,       // Replace with the actual mode
+          type: type_,       // Replace with the actual type
+          changed_only: changedOnly, // Set true/false based on requirement
+          skip_english: skipEnglish
         };
         ws.send(JSON.stringify(fileDetails));
 
@@ -105,7 +127,77 @@
     }
   };
 
-  // Function for downloading file via POST
+  // Function for handling document upload via POST
+  uploadDocumentPostButton.onclick = function () {
+    const file = fileInput.files[0];
+    const apikey = apiKeyInput.value;
+    const mode = modeSelect.value;
+    const type_ = typeSelect.value;
+    const changedOnly = changedOnlyCheckbox.checked;
+    const skipEnglish = skipEnglishCheckbox.checked;
+
+    if (!file || !apikey) {
+      output.innerHTML = `<p style="color:red;">Please select a file and provide an API key.</p>`;
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("FileName", file.name);
+    formData.append("apikey", apikey);
+    formData.append("mode", mode);
+    formData.append("type_", type_);
+    formData.append("changed_only", changedOnly);
+    formData.append("skip_english", skipEnglish);
+
+    fetch("https://api.speedai.chat/v1/docx", {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === "processing") {
+        docId = data.user_doc_id;
+        output.innerHTML = `<p>Document uploaded. Processing started with ID: ${docId}</p>`;
+        checkProcessingStatus(docId);
+      } else {
+        output.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+      }
+    })
+    .catch(error => {
+      console.error("Error:", error);
+      output.innerHTML = `<p style="color:red;">Error uploading document.</p>`;
+    });
+  };
+
+  // Function to check document processing status
+  function checkProcessingStatus(docId) {
+    fetch("https://api.speedai.chat/v1/docx/status", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_doc_id: docId })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === "completed") {
+        output.innerHTML += `<p>Document processing completed.</p>`;
+        downloadFile(docId, "Processed_Document");
+      } else if (data.status === "processing") {
+        output.innerHTML += `<p>Processing progress: ${data.progress}%</p>`;
+        setTimeout(() => checkProcessingStatus(docId), 2000);  // Poll every 2 seconds
+      } else {
+        output.innerHTML += `<p style="color:red;">Error: ${data.error}</p>`;
+      }
+    })
+    .catch(error => {
+      console.error("Error:", error);
+      output.innerHTML = `<p style="color:red;">Error checking status.</p>`;
+    });
+  }
+
+  // Function to download the processed file
   function downloadFile(user_doc_id, fileName) {
     const downloadUrl = "https://api.speedai.chat/v1/download";
     const requestData = {
@@ -141,13 +233,40 @@
       output.innerHTML += `<p style="color:red;">File download failed.</p>`;
     });
   }
+  // function downloadFile(user_doc_id, fileName) {
+  //   const downloadUrl = "https://api.speedai.chat/v1/docx/download/" + user_doc_id;
+  //
+  //   fetch(downloadUrl, {
+  //     method: 'GET'
+  //   })
+  //   .then(response => {
+  //     if (!response.ok) {
+  //       throw new Error('Network response was not ok');
+  //     }
+  //     return response.blob();  // Get the file content as a blob
+  //   })
+  //   .then(blob => {
+  //     const url = window.URL.createObjectURL(new Blob([blob]));
+  //     const a = document.createElement('a');
+  //     a.style.display = 'none';
+  //     a.href = url;
+  //     a.download = `${fileName}.docx`;
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     window.URL.revokeObjectURL(url);  // Clean up the URL object
+  //   })
+  //   .catch(error => {
+  //     console.error('Error while downloading the file:', error);
+  //     output.innerHTML += `<p style="color:red;">File download failed.</p>`;
+  //   });
+  // }
 
   // Function for handling text processing via API
-  processText.onclick = function () {
+  processTextButton.onclick = function () {
     const text = inputText.value;
     const mode = modeSelect.value;
     const type = typeSelect.value;
-    const lang = langSelect.value;
+    const lang = languageSelect.value;
 
     if (!text) {
       alert("Please enter some text to process.");
@@ -155,17 +274,17 @@
     }
 
     const apiUrl = mode === 'rewrite' ? 'https://api.speedai.chat/v1/rewrite' : 'https://api.speedai.chat/v1/deai';
-    
+
     fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        apikey: "test_api",  // Replace with the actual API key
+        apikey: "test_api",  // Replace with actual API key
         info: text,
-        lang: lang,  // You can change this to 'English' if needed
-        type: type,  // zhiwang, weipu, gezida
+        lang: lang,
+        type: type,
       }),
     })
     .then(response => response.json())
