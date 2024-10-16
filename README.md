@@ -1,5 +1,8 @@
 # HumanizerAI
 降AIGC率，降低知网、维普、格子达平台的AIGC检测率，降知网AI，降维普AI，降格子达AI。
+# 普通用户请访问[网页版](https://speedai.fun)
+普通用户请访问[网页版](https://speedai.fun)
+# 下面为开发人员文档，无开发能力的请使用上面的用户版本
 # 接口文档说明
 
 ## 概述：
