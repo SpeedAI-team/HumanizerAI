@@ -83,7 +83,7 @@
         const skipEnglish = skipEnglishCheckbox.checked;
         const fileDetails = {
           FileName: file.name,
-          apikey: apikey,  // Replace with the actual API key
+          username: apikey,  // Replace with the actual API key
           mode: mode,       // Replace with the actual mode
           type: type_,       // Replace with the actual type
           changed_only: changedOnly, // Set true/false based on requirement
@@ -281,7 +281,7 @@
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        apikey: "test_api",  // Replace with actual API key
+        username: "test_api",  // Replace with actual API key
         info: text,
         lang: lang,
         type: type,
