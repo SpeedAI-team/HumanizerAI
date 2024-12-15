@@ -10,9 +10,9 @@
 <h1>SpeedAI文档与文本处理示例</h1>
 
 
-<label for="apiKey">API Key:</label>
-<input type="text" id="apiKey" placeholder="Enter your API key" /><br><br>
-
+<label for="username">Username:</label>
+<input type="text" id="username" placeholder="Enter your API key" /><br><br>
+<input type="text" id="token" placeholder="Enter your token" /><br><br>
 <label for="modeSelect">选择模型:</label>
 <select id="modeSelect">
   <option value="rewrite">降重</option>
@@ -54,7 +54,9 @@
 
 <script>
   const fileInput = document.getElementById('fileInput');
-  const apiKeyInput = document.getElementById('apiKey');
+  const usernameInput = document.getElementById('username');
+  const tokenInput = document.getElementById('token');
+  
   const modeSelect = document.getElementById('modeSelect');
   const typeSelect = document.getElementById('typeSelect');
   const changedOnlyCheckbox = document.getElementById('changedOnly');
@@ -70,20 +72,22 @@
   // Stream processing via WebSocket
   uploadDocumentButton.onclick = function () {
     const file = fileInput.files[0];
+    const token = tokenInput.value;
+    
     if (file) {
-      ws = new WebSocket('wss://api.speedai.chat/v1/docx');
+      ws = new WebSocket(`ss://api.speedai.chat/v1/docx?token=${token}`);
 
       ws.onopen = function () {
         // When the WebSocket connection opens, send the file details
         const file = fileInput.files[0];
-        const apikey = apiKeyInput.value;
+        const username = usernameInput.value;
         const mode = modeSelect.value;
         const type_ = typeSelect.value;
         const changedOnly = changedOnlyCheckbox.checked;
         const skipEnglish = skipEnglishCheckbox.checked;
         const fileDetails = {
           FileName: file.name,
-          username: apikey,  // Replace with the actual API key
+          username: username,  // Replace with the actual API key
           mode: mode,       // Replace with the actual mode
           type: type_,       // Replace with the actual type
           changed_only: changedOnly, // Set true/false based on requirement
@@ -130,13 +134,14 @@
   // Function for handling document upload via POST
   uploadDocumentPostButton.onclick = function () {
     const file = fileInput.files[0];
-    const apikey = apiKeyInput.value;
+    const username = usernameInput.value;
     const mode = modeSelect.value;
     const type_ = typeSelect.value;
     const changedOnly = changedOnlyCheckbox.checked;
     const skipEnglish = skipEnglishCheckbox.checked;
+    const token = tokenInput.value;
 
-    if (!file || !apikey) {
+    if (!file || !username) {
       output.innerHTML = `<p style="color:red;">Please select a file and provide an API key.</p>`;
       return;
     }
@@ -144,7 +149,7 @@
     const formData = new FormData();
     formData.append("file", file);
     formData.append("FileName", file.name);
-    formData.append("apikey", apikey);
+    formData.append("username", username);
     formData.append("mode", mode);
     formData.append("type_", type_);
     formData.append("changed_only", changedOnly);
@@ -152,6 +157,10 @@
 
     fetch("https://api.speedai.chat/v1/docx", {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: formData
     })
     .then(response => response.json())
@@ -172,10 +181,12 @@
 
   // Function to check document processing status
   function checkProcessingStatus(docId) {
+    const token = tokenInput.value;
     fetch("https://api.speedai.chat/v1/docx/status", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ user_doc_id: docId })
     })
@@ -199,6 +210,7 @@
 
   // Function to download the processed file
   function downloadFile(user_doc_id, fileName) {
+    const token = tokenInput.value;
     const downloadUrl = "https://api.speedai.chat/v1/download";
     const requestData = {
       user_doc_id: user_doc_id,
@@ -209,6 +221,7 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(requestData),
     })
@@ -267,6 +280,7 @@
     const mode = modeSelect.value;
     const type = typeSelect.value;
     const lang = languageSelect.value;
+    const token = tokenInput.value;
 
     if (!text) {
       alert("Please enter some text to process.");
@@ -279,9 +293,10 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        username: apiKeyInput.value,  // Replace with actual API key
+        username: usernameInput.value,  // Replace with actual API key
         info: text,
         lang: lang,
         type: type,
