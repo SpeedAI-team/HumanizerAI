@@ -75,7 +75,7 @@
     const token = tokenInput.value;
     
     if (file) {
-      ws = new WebSocket(`ss://api.speedai.chat/v1/docx?token=${token}`);
+      ws = new WebSocket(`ss://api.speedai.vip/v1/docx?token=${token}`);
 
       ws.onopen = function () {
         // When the WebSocket connection opens, send the file details
@@ -155,7 +155,7 @@
     formData.append("changed_only", changedOnly);
     formData.append("skip_english", skipEnglish);
 
-    fetch("https://api.speedai.chat/v1/docx", {
+    fetch("https://api.speedai.vip/v1/docx", {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -181,7 +181,7 @@
   // Function to check document processing status
   function checkProcessingStatus(docId) {
     const token = tokenInput.value;
-    fetch("https://api.speedai.chat/v1/docx/status", {
+    fetch("https://api.speedai.vip/v1/docx/status", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -210,7 +210,7 @@
   // Function to download the processed file
   function downloadFile(user_doc_id, fileName) {
     const token = tokenInput.value;
-    const downloadUrl = "https://api.speedai.chat/v1/download";
+    const downloadUrl = "https://api.speedai.vip/v1/download";
     const requestData = {
       user_doc_id: user_doc_id,
       file_name: fileName
@@ -246,7 +246,7 @@
     });
   }
   // function downloadFile(user_doc_id, fileName) {
-  //   const downloadUrl = "https://api.speedai.chat/v1/docx/download/" + user_doc_id;
+  //   const downloadUrl = "https://api.speedai.vip/v1/docx/download/" + user_doc_id;
   //
   //   fetch(downloadUrl, {
   //     method: 'GET'
@@ -286,7 +286,7 @@
       return;
     }
 
-    const apiUrl = mode === 'rewrite' ? 'https://api.speedai.chat/v1/rewrite' : 'https://api.speedai.chat/v1/deai';
+    const apiUrl = mode === 'rewrite' ? 'https://api.speedai.vip/v1/rewrite' : 'https://api.speedai.vip/v1/deai';
 
     fetch(apiUrl, {
       method: 'POST',
