@@ -13,7 +13,7 @@ def test_download_file(
         print("需要填写正确的user_doc_id")
         return
     response = requests.post(
-        "https://api.speedai.chat/v1/download",
+        "https://api.speedai.vip/v1/download",
         json={
             "user_doc_id": user_doc_id,
             "file_name": file_name,
@@ -31,7 +31,7 @@ def test_rewrite(
         text="有人说：“学生是一艘轮船，在知识的海洋中航行，能否顺利到达成功的彼岸，教师这个航标起到导航的关键作用。",
 ):
     response = requests.post(
-        "https://api.speedai.chat/v1/rewrite",
+        "https://api.speedai.vip/v1/rewrite",
         json={
             "apikey": "test_api",
             "info": text,
@@ -49,7 +49,7 @@ def test_deai(
         text="有人说：“学生是一艘轮船，在知识的海洋中航行，能否顺利到达成功的彼岸，教师这个航标起到导航的关键作用。",
 ):
     response = requests.post(
-        "https://api.speedai.chat/v1/deai",
+        "https://api.speedai.vip/v1/deai",
         json={
             "apikey": "test_api",
             "info": text,
@@ -64,7 +64,7 @@ def test_deai(
 
 
 async def send_file(file_path):
-    async with websockets.connect('wss://api.speedai.chat/v1/docx') as websocket:
+    async with websockets.connect('wss://api.speedai.vip/v1/docx') as websocket:
         # Prepare file details
         file_details = {
             "FileName": os.path.basename(file_path),
