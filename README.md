@@ -66,7 +66,7 @@
 
 **接口地址：**
 
-- `POST https://api.speedai.chat/v1/download`
+- `POST https://api.speedai.vip/v1/download`
 
 **功能：**
 根据 `user_doc_id` 和 `file_name` 下载经过修改的文档。
@@ -109,7 +109,7 @@
 
 **接口地址：**
 
-- `POST https://api.speedai.chat/v1/rewrite`
+- `POST https://api.speedai.vip/v1/rewrite`
 
 **功能：**
 根据指定类型对输入的文本进行重写。
@@ -162,7 +162,7 @@
 
 **接口地址：**
 
-- `POST https://api.speedai.chat/v1/deai`
+- `POST https://api.speedai.vip/v1/deai`
 
 **功能：**
 对输入的文本进行降AI处理，根据指定类型去除AI生成的痕迹。
@@ -215,7 +215,7 @@
 
 **接口地址：**
 
-- `wss://api.speedai.chat/v1/docx`
+- `wss://api.speedai.vip/v1/docx`
 
 **功能：**
 通过WebSocket连接上传Word文档（`.docx`），并实时获取处理进度和修改结果。
@@ -324,7 +324,7 @@ def test_download_file(
         print("需要填写正确的user_doc_id")
         return
     response = requests.post(
-        "https://api.speedai.chat/v1/download",
+        "https://api.speedai.vip/v1/download",
         json={
             "user_doc_id": user_doc_id,
             "file_name": file_name,
@@ -342,7 +342,7 @@ def test_rewrite(
         text="有人说：“学生是一艘轮船，在知识的海洋中航行，能否顺利到达成功的彼岸，教师这个航标起到导航的关键作用。",
 ):
     response = requests.post(
-        "https://api.speedai.chat/v1/rewrite",
+        "https://api.speedai.vip/v1/rewrite",
         json={
             "apikey": "test_api",
             "info": text,
@@ -360,7 +360,7 @@ def test_deai(
         text="有人说：“学生是一艘轮船，在知识的海洋中航行，能否顺利到达成功的彼岸，教师这个航标起到导航的关键作用。",
 ):
     response = requests.post(
-        "https://api.speedai.chat/v1/deai",
+        "https://api.speedai.vip/v1/deai",
         json={
             "apikey": "test_api",
             "info": text,
@@ -375,7 +375,7 @@ def test_deai(
 
 
 async def send_file(file_path):
-    async with websockets.connect('wss://api.speedai.chat/v1/docx') as websocket:
+    async with websockets.connect('wss://api.speedai.vip/v1/docx') as websocket:
         # Prepare file details
         file_details = {
             "FileName": os.path.basename(file_path),
@@ -460,7 +460,7 @@ public class ApiClient {
         body.put("file_name", fileName);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.speedai.chat/v1/download"))
+                .uri(URI.create("https://api.speedai.vip/v1/download"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
@@ -484,7 +484,7 @@ public class ApiClient {
         body.put("type", "zhiwang");
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.speedai.chat/v1/rewrite"))
+                .uri(URI.create("https://api.speedai.vip/v1/rewrite"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
@@ -508,7 +508,7 @@ public class ApiClient {
         body.put("type", "zhiwang");
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.speedai.chat/v1/deai"))
+                .uri(URI.create("https://api.speedai.vip/v1/deai"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
@@ -524,7 +524,7 @@ public class ApiClient {
 
     // WebSocket Client for Sending File
     public static CompletableFuture<String> sendFile(String filePath) throws Exception {
-        WebSocketClient webSocketClient = new WebSocketClient(URI.create("wss://api.speedai.chat/v1/docx"), filePath);
+        WebSocketClient webSocketClient = new WebSocketClient(URI.create("wss://api.speedai.vip/v1/docx"), filePath);
         webSocketClient.connect();
         return webSocketClient.getUserDocId();
     }
@@ -646,7 +646,7 @@ func testDownloadFile(userDocId, fileName string) {
 		return
 	}
 
-	url := "https://api.speedai.chat/v1/download"
+	url := "https://api.speedai.vip/v1/download"
 	requestBody := FileRequest{
 		UserDocId: userDocId,
 		FileName:  fileName,
@@ -681,7 +681,7 @@ func testDownloadFile(userDocId, fileName string) {
 }
 
 func testRewrite(text string) {
-	url := "https://api.speedai.chat/v1/rewrite"
+	url := "https://api.speedai.vip/v1/rewrite"
 	requestBody := RewriteRequest{
 		ApiKey: "test_api",
 		Info:   text,
@@ -712,7 +712,7 @@ func testRewrite(text string) {
 }
 
 func testDeai(text string) {
-	url := "https://api.speedai.chat/v1/deai"
+	url := "https://api.speedai.vip/v1/deai"
 	requestBody := RewriteRequest{
 		ApiKey: "test_api",
 		Info:   text,
@@ -743,7 +743,7 @@ func testDeai(text string) {
 }
 
 func sendFile(filePath string) string {
-	wsURL := "wss://api.speedai.chat/v1/docx"
+	wsURL := "wss://api.speedai.vip/v1/docx"
 	var userDocId string
 
 	// Connect to WebSocket
@@ -870,7 +870,7 @@ func main() {
   fileInput.onchange = function () {
     const file = fileInput.files[0];
     if (file) {
-      ws = new WebSocket('wss://api.speedai.chat/v1/docx');
+      ws = new WebSocket('wss://api.speedai.vip/v1/docx');
 
       ws.onopen = function () {
         // When the WebSocket connection opens, send the file details
@@ -922,7 +922,7 @@ func main() {
 
   // Function for downloading file via POST
   function downloadFile(user_doc_id, fileName) {
-    const downloadUrl = "https://api.speedai.chat/v1/download";
+    const downloadUrl = "https://api.speedai.vip/v1/download";
     const requestData = {
       user_doc_id: user_doc_id,
       file_name: fileName
@@ -968,7 +968,7 @@ func main() {
       return;
     }
 
-    const apiUrl = mode === 'rewrite' ? 'https://api.speedai.chat/v1/rewrite' : 'https://api.speedai.chat/v1/deai';
+    const apiUrl = mode === 'rewrite' ? 'https://api.speedai.vip/v1/rewrite' : 'https://api.speedai.vip/v1/deai';
     
     fetch(apiUrl, {
       method: 'POST',
