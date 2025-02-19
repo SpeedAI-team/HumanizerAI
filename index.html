@@ -304,7 +304,7 @@
     .then(response => response.json())
     .then(data => {
       if (data.code === 200) {
-        output.innerHTML = `<p><strong>Processed Text:</strong><br>${data.rewrite.replace(/\n/g, '<br>')}</p>`;
+        output.innerHTML = `<pre>${data.rewrite}</pre>`;
       } else {
         output.innerHTML = `<p style="color:red;">Error processing text: ${data.message}</p>`;
       }
