@@ -50,6 +50,7 @@
 <button id="processText">处理文字</button>
 
 <h3>处理日志</h3>
+  <button onclick="copyToClipboard()">一键复制</button>
 <div id="output"></div>
 
 <script>
@@ -272,6 +273,16 @@
   //     output.innerHTML += `<p style="color:red;">File download failed.</p>`;
   //   });
   // }
+  function copyToClipboard() {
+            const textToCopy = document.getElementById("textToCopy").innerText;
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => {
+                    alert("文本已复制到剪贴板！");
+                })
+                .catch(err => {
+                    console.error("复制失败: ", err);
+                });
+        }
 
   // Function for handling text processing via API
   processTextButton.onclick = function () {
@@ -304,7 +315,7 @@
     .then(response => response.json())
     .then(data => {
       if (data.code === 200) {
-        output.innerHTML = `<pre>${data.rewrite}</pre>`;
+        output.innerHTML = `<pre id="textToCopy">${data.rewrite}</pre>`;
       } else {
         output.innerHTML = `<p style="color:red;">Error processing text: ${data.message}</p>`;
       }
