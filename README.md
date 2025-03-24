@@ -212,66 +212,95 @@
 
 ---
 
-### 4. **WebSocket文件上传和实时处理接口**
+### 4. **文档上传和处理接口**
 
 **接口地址：**
 
-- `wss://api3.speedai.chat/v1/docx`
+- `POST https://api3.speedai.chat/v1/docx`
 
 **功能：**
-通过WebSocket连接上传Word文档（`.docx`），并实时获取处理进度和修改结果。
+通过HTTP POST方式上传Word文档（`.docx`），并获取处理ID用于后续状态查询。
 
 **请求方式：**
 
-- `WebSocket`
+- `POST`
 
 **请求参数：**
-通过WebSocket连接时发送以下JSON格式的参数：
+通过FormData形式提交以下参数：
 
 | 参数名称       | 类型    | 必填 | 说明                                          |
 | -------------- | ------- | ---- | --------------------------------------------- |
+| `file`         | File    | 是   | 上传的文档文件                                |
 | `FileName`     | String  | 是   | 上传文件的名称                                |
-| `apikey`       | String  | 是   | API密钥                                       |
+| `username`     | String  | 是   | 用户名/API密钥                                |
 | `mode`         | String  | 是   | 处理模式 (`rewrite` 或 `deai`)                |
-| `type`         | String  | 是   | 处理类型 (`zhiwang`, `weipu`, `gezida`)       |
+| `type_`        | String  | 是   | 处理类型 (`zhiwang`, `weipu`, `gezida`)       |
 | `changed_only` | Boolean | 否   | 是否仅返回修改部分（`true` 为仅返回修改部分） |
 | `skip_english` | Boolean | 否   | 是否跳过英文部分（`true` 为不处理英文部分）   |
 
 **请求示例：**
 
-```json
-{
-    "FileName": "mydocument.docx",
-    "apikey": "test_api",
-    "mode": "deai",
-    "type": "weipu",
-    "changed_only": true,
-    "skip_english": true
-}
+```javascript
+// Function for handling document upload via POST
+uploadDocumentPostButton.onclick = function () {
+  const file = fileInput.files[0];
+  const username = usernameInput.value;
+  const mode = modeSelect.value;
+  const type_ = typeSelect.value;
+  const changedOnly = changedOnlyCheckbox.checked;
+  const skipEnglish = skipEnglishCheckbox.checked;
+  const token = tokenInput.value;
+
+  if (!file || !username) {
+    output.innerHTML = `<p style="color:red;">Please select a file and provide an API key.</p>`;
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("FileName", file.name);
+  formData.append("username", username);
+  formData.append("mode", mode);
+  formData.append("type_", type_);
+  formData.append("changed_only", changedOnly);
+  formData.append("skip_english", skipEnglish);
+
+  fetch("https://api3.speedai.chat/v1/docx", {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === "processing") {
+      docId = data.user_doc_id;
+      output.innerHTML = `<p>Document uploaded. Processing started with ID: ${docId}</p>`;
+      checkProcessingStatus(docId);
+    } else {
+      output.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+    }
+  })
+  .catch(error => {
+    console.error("Error:", error);
+    output.innerHTML = `<p style="color:red;">Error uploading document.</p>`;
+  });
+};
 ```
 
-**实时返回格式：**
+**响应示例：**
 
-1. **修改部分返回：**
-
-   ```json
-   {
-       "status": "running",
-       "original": "学生是一艘轮船",
-       "modified": "学生如同一艘船只"
-   }
-   ```
-
-2. **处理完成：**
+1. **处理开始：**
 
    ```json
    {
-       "status": "completed",
+       "status": "processing",
        "user_doc_id": "1234567890"
    }
    ```
 
-3. **错误返回：**
+2. **处理错误：**
 
    ```json
    {
@@ -279,6 +308,9 @@
        "error": "File format not supported"
    }
    ```
+
+---
+
 
 ### 5. **文档处理状态检查接口**
 
