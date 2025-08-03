@@ -1,0 +1,26 @@
+{
+  "name": "speedai-client",
+  "version": "1.0.0",
+  "description": "Node.js client for SpeedAI document and text processing API",
+  "main": "index.js",
+  "scripts": {
+    "test": "node example.js"
+  },
+  "keywords": [
+    "speedai",
+    "ai",
+    "text-processing",
+    "document-processing",
+    "api-client"
+  ],
+  "author": "SpeedAI",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "form-data": "^4.0.0",
+    "fs": "^0.0.1-security"
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1"
+  }
+}
