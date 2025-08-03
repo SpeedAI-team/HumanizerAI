@@ -1,68 +1,335 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document and Text Processor</title>
+  <title>SpeedAI 文档与文本处理</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 40px;
+      font-size: 2.5rem;
+      font-weight: 600;
+    }
+
+    h2 {
+      color: #34495e;
+      margin-top: 30px;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+      font-weight: 500;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+
+    h3 {
+      color: #34495e;
+      margin-top: 20px;
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+
+    input[type="text"],
+    input[type="file"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background-color: #fafafa;
+    }
+
+    input[type="text"]:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #4CAF50;
+      background-color: white;
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    }
+
+    select {
+      cursor: pointer;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+      font-family: inherit;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    .checkbox-group label {
+      margin-bottom: 0;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-right: 10px;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .success-btn {
+      background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%);
+    }
+
+    .success-btn:hover {
+      box-shadow: 0 5px 20px rgba(67, 160, 71, 0.4);
+    }
+
+    .copy-btn {
+      background: linear-gradient(135deg, #00bcd4 0%, #00acc1 100%);
+      font-size: 14px;
+      padding: 8px 20px;
+    }
+
+    .copy-btn:hover {
+      box-shadow: 0 5px 20px rgba(0, 188, 212, 0.4);
+    }
+
+    #output {
+      margin-top: 20px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    #output p {
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    #output pre {
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+    }
+
+    .error {
+      color: #e74c3c;
+      font-weight: 500;
+    }
+
+    .success {
+      color: #27ae60;
+      font-weight: 500;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      width: 100%;
+    }
+
+    .file-input-wrapper input[type=file] {
+      cursor: pointer;
+    }
+
+    .progress {
+      background-color: #f0f0f0;
+      border-radius: 10px;
+      height: 20px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+      text-align: center;
+      color: white;
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .credentials-section {
+      background-color: #f0f4f8;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+
+    .credentials-section h2 {
+      margin-top: 0;
+      border: none;
+      padding: 0;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      button {
+        width: 100%;
+        margin-right: 0;
+      }
+    }
+  </style>
 </head>
 <body>
 
-<h1>SpeedAI文档与文本处理示例</h1>
+<div class="container">
+  <h1>SpeedAI 文档与文本处理</h1>
 
+  <div class="credentials-section">
+    <h2>认证信息</h2>
+    <div class="form-group">
+      <label for="username">API Key:</label>
+      <input type="text" id="username" placeholder="请输入您的 API key" />
+    </div>
+    <div class="form-group">
+      <label for="token">Token:</label>
+      <input type="text" id="token" placeholder="请输入您的 token" />
+    </div>
+  </div>
 
-<label for="username">Username:</label>
-<input type="text" id="username" placeholder="Enter your API key" /><br><br>
-<input type="text" id="token" placeholder="Enter your token" /><br><br>
-<label for="modeSelect">选择模型:</label>
-<select id="modeSelect">
-  <option value="rewrite">降重</option>
-  <option value="deai">降AIGC</option>
-</select><br><br>
+  <div class="form-group">
+    <label for="modeSelect">选择模型:</label>
+    <select id="modeSelect">
+      <option value="rewrite">降重</option>
+      <option value="deai">降AIGC</option>
+    </select>
+  </div>
 
-<label for="typeSelect">选择平台:</label>
-<select id="typeSelect">
-  <option value="zhiwang">Zhiwang</option>
-  <option value="weipu">Weipu</option>
-  <option value="gezida">Gezida</option>
-</select><br><br>
+  <div class="form-group">
+    <label for="typeSelect">选择平台:</label>
+    <select id="typeSelect">
+      <option value="zhiwang">知网</option>
+      <option value="weipu">维普</option>
+      <option value="gezida">格子达</option>
+    </select>
+  </div>
 
-<label for="languageSelect">选择语言:</label>
-<select id="languageSelect">
-  <option value="Chinese">中文</option>
-  <option value="English">英文</option>
-</select><br><br>
+  <div class="form-group">
+    <label for="languageSelect">选择语言:</label>
+    <select id="languageSelect">
+      <option value="Chinese">中文</option>
+      <option value="English">英文</option>
+    </select>
+  </div>
 
-<label for="changedOnly">是否仅返回修改的段落（用于流式文档处理）:</label>
-<input type="checkbox" id="changedOnly" /><br><br>
+  <div class="checkbox-group">
+    <input type="checkbox" id="skipEnglish" checked />
+    <label for="skipEnglish">跳过英文内容</label>
+  </div>
 
-<label for="skipEnglish">Skip English:</label>
-<input type="checkbox" id="skipEnglish" checked /><br><br>
+  <h2>文档处理</h2>
+  <div class="form-group">
+    <label for="fileInput">上传文档 (.doc 或 .docx):</label>
+    <div class="file-input-wrapper">
+      <input type="file" id="fileInput" accept=".doc, .docx" />
+    </div>
+  </div>
+  <button id="uploadDocumentPost" class="success-btn">处理文档</button>
 
-<h2>上传文档 (.doc or .docx)</h2>
+  <h2>文本处理</h2>
+  <div class="form-group">
+    <label for="inputText">输入文本:</label>
+    <textarea id="inputText" placeholder="请输入需要处理的文本..."></textarea>
+  </div>
+  <button id="processText">处理文本</button>
 
-<input type="file" id="fileInput" accept=".doc, .docx" /><br><br>
-<button id="uploadDocument">流式处理文档</button>
-<button id="uploadDocumentPost">非流式处理文档</button>
-
-<h2>文本重写、降AI</h2>
-<textarea id="inputText" rows="5" cols="50" placeholder="Enter text here..."></textarea>
-<br>
-<button id="processText">处理文字</button>
-
-<h3>处理日志</h3>
-  <button onclick="copyToClipboard()">一键复制</button>
-<div id="output"></div>
+  <h3>处理结果 <button onclick="copyToClipboard()" class="copy-btn">复制结果</button></h3>
+  <div id="output"></div>
+</div>
 
 <script>
   const fileInput = document.getElementById('fileInput');
   const usernameInput = document.getElementById('username');
   const tokenInput = document.getElementById('token');
-  
   const modeSelect = document.getElementById('modeSelect');
   const typeSelect = document.getElementById('typeSelect');
-  const changedOnlyCheckbox = document.getElementById('changedOnly');
   const skipEnglishCheckbox = document.getElementById('skipEnglish');
-  const uploadDocumentButton = document.getElementById('uploadDocument');
   const uploadDocumentPostButton = document.getElementById('uploadDocumentPost');
   const inputText = document.getElementById('inputText');
   const processTextButton = document.getElementById('processText');
@@ -70,82 +337,21 @@
   const languageSelect = document.getElementById('languageSelect');
   let docId;
 
-  // Stream processing via WebSocket
-  uploadDocumentButton.onclick = function () {
-    const file = fileInput.files[0];
-    const token = tokenInput.value;
-    
-    if (file) {
-      ws = new WebSocket(`ss://api3.speedai.chat/v1/docx?token=${token}`);
-
-      ws.onopen = function () {
-        // When the WebSocket connection opens, send the file details
-        const file = fileInput.files[0];
-        const username = usernameInput.value;
-        const mode = modeSelect.value;
-        const type_ = typeSelect.value;
-        const changedOnly = changedOnlyCheckbox.checked;
-        const skipEnglish = skipEnglishCheckbox.checked;
-        const fileDetails = {
-          FileName: file.name,
-          username: username,  // Replace with the actual API key
-          mode: mode,       // Replace with the actual mode
-          type: type_,       // Replace with the actual type
-          changed_only: changedOnly, // Set true/false based on requirement
-          skip_english: skipEnglish
-        };
-        ws.send(JSON.stringify(fileDetails));
-
-        // Read and send the file contents
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          ws.send(e.target.result);
-        };
-        reader.readAsArrayBuffer(file);
-      };
-
-      ws.onmessage = function (event) {
-        const data = JSON.parse(event.data);
-
-        if (data.status === "error") {
-          output.innerHTML += `<p style="color:red;">Error: ${data.error}</p>`;
-        } else if (data.status === "completed") {
-          // Handle file download after processing
-          downloadFile(data.user_doc_id, "修改后论文");
-        } else {
-          // Update real-time log of original and modified paragraphs
-          const paraElement = document.createElement('div');
-          paraElement.innerHTML = `<p><strong>Original:</strong> ${data.original}</p>
-                                   <p><strong>Modified:</strong> ${data.modified}</p>`;
-          output.appendChild(paraElement);
-        }
-      };
-
-      ws.onclose = function () {
-        console.log("WebSocket connection closed.");
-      };
-
-      ws.onerror = function (error) {
-        console.error("WebSocket error:", error);
-        output.innerHTML += `<p style="color:red;">WebSocket error occurred.</p>`;
-      };
-    }
-  };
-
   // Function for handling document upload via POST
   uploadDocumentPostButton.onclick = function () {
     const file = fileInput.files[0];
     const username = usernameInput.value;
     const mode = modeSelect.value;
     const type_ = typeSelect.value;
-    const changedOnly = changedOnlyCheckbox.checked;
     const skipEnglish = skipEnglishCheckbox.checked;
     const token = tokenInput.value;
 
-    if (!file || !username) {
-      output.innerHTML = `<p style="color:red;">Please select a file and provide an API key.</p>`;
+    if (!file || !username || !token) {
+      output.innerHTML = `<p class="error">请选择文件并提供 API key 和 Token。</p>`;
       return;
     }
+
+    output.innerHTML = `<p>正在上传文档...</p>`;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -153,7 +359,7 @@
     formData.append("username", username);
     formData.append("mode", mode);
     formData.append("type_", type_);
-    formData.append("changed_only", changedOnly);
+    formData.append("changed_only", false);
     formData.append("skip_english", skipEnglish);
 
     fetch("https://api3.speedai.chat/v1/docx", {
@@ -167,15 +373,15 @@
     .then(data => {
       if (data.status === "processing") {
         docId = data.user_doc_id;
-        output.innerHTML = `<p>Document uploaded. Processing started with ID: ${docId}</p>`;
+        output.innerHTML = `<p class="success">文档上传成功！处理中... ID: ${docId}</p>`;
         checkProcessingStatus(docId);
       } else {
-        output.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+        output.innerHTML = `<p class="error">错误: ${data.error || '上传失败'}</p>`;
       }
     })
     .catch(error => {
       console.error("Error:", error);
-      output.innerHTML = `<p style="color:red;">Error uploading document.</p>`;
+      output.innerHTML = `<p class="error">文档上传失败，请检查网络连接。</p>`;
     });
   };
 
@@ -193,18 +399,18 @@
     .then(response => response.json())
     .then(data => {
       if (data.status === "completed") {
-        output.innerHTML += `<p>Document processing completed.</p>`;
-        downloadFile(docId, "Processed_Document");
+        output.innerHTML += `<p class="success">文档处理完成！</p>`;
+        downloadFile(docId, "处理后的文档");
       } else if (data.status === "processing") {
-        output.innerHTML += `<p>Processing progress: ${data.progress}%</p>`;
-        setTimeout(() => checkProcessingStatus(docId), 2000);  // Poll every 2 seconds
+        output.innerHTML = `<p>处理进度: <div class="progress"><div class="progress-bar" style="width: ${data.progress}%">${data.progress}%</div></div></p>`;
+        setTimeout(() => checkProcessingStatus(docId), 2000);
       } else {
-        output.innerHTML += `<p style="color:red;">Error: ${data.error}</p>`;
+        output.innerHTML += `<p class="error">错误: ${data.error || '处理失败'}</p>`;
       }
     })
     .catch(error => {
       console.error("Error:", error);
-      output.innerHTML = `<p style="color:red;">Error checking status.</p>`;
+      output.innerHTML = `<p class="error">检查状态失败，请重试。</p>`;
     });
   }
 
@@ -229,7 +435,7 @@
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
-      return response.blob(); // Get the file content as blob
+      return response.blob();
     })
     .then(blob => {
       const url = window.URL.createObjectURL(new Blob([blob]));
@@ -239,50 +445,32 @@
       a.download = `${fileName}.docx`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url); // Clean up the URL object
+      window.URL.revokeObjectURL(url);
+      output.innerHTML += `<p class="success">文件下载成功！</p>`;
     })
     .catch(error => {
       console.error('Error while downloading the file:', error);
-      output.innerHTML += `<p style="color:red;">File download failed.</p>`;
+      output.innerHTML += `<p class="error">文件下载失败，请重试。</p>`;
     });
   }
-  // function downloadFile(user_doc_id, fileName) {
-  //   const downloadUrl = "https://api3.speedai.chat/v1/docx/download/" + user_doc_id;
-  //
-  //   fetch(downloadUrl, {
-  //     method: 'GET'
-  //   })
-  //   .then(response => {
-  //     if (!response.ok) {
-  //       throw new Error('Network response was not ok');
-  //     }
-  //     return response.blob();  // Get the file content as a blob
-  //   })
-  //   .then(blob => {
-  //     const url = window.URL.createObjectURL(new Blob([blob]));
-  //     const a = document.createElement('a');
-  //     a.style.display = 'none';
-  //     a.href = url;
-  //     a.download = `${fileName}.docx`;
-  //     document.body.appendChild(a);
-  //     a.click();
-  //     window.URL.revokeObjectURL(url);  // Clean up the URL object
-  //   })
-  //   .catch(error => {
-  //     console.error('Error while downloading the file:', error);
-  //     output.innerHTML += `<p style="color:red;">File download failed.</p>`;
-  //   });
-  // }
+
+  // Function to copy output text
   function copyToClipboard() {
-            const textToCopy = document.getElementById("textToCopy").innerText;
-            navigator.clipboard.writeText(textToCopy)
-                .then(() => {
-                    alert("文本已复制到剪贴板！");
-                })
-                .catch(err => {
-                    console.error("复制失败: ", err);
-                });
-        }
+    const textElement = document.getElementById("textToCopy");
+    if (!textElement) {
+      alert("没有可复制的内容！");
+      return;
+    }
+    const textToCopy = textElement.innerText;
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        alert("文本已复制到剪贴板！");
+      })
+      .catch(err => {
+        console.error("复制失败: ", err);
+        alert("复制失败，请手动选择复制。");
+      });
+  }
 
   // Function for handling text processing via API
   processTextButton.onclick = function () {
@@ -291,11 +479,19 @@
     const type = typeSelect.value;
     const lang = languageSelect.value;
     const token = tokenInput.value;
+    const username = usernameInput.value;
 
     if (!text) {
-      alert("Please enter some text to process.");
+      alert("请输入需要处理的文本。");
       return;
     }
+
+    if (!username || !token) {
+      alert("请提供 API key 和 Token。");
+      return;
+    }
+
+    output.innerHTML = `<p>正在处理文本...</p>`;
 
     const apiUrl = mode === 'rewrite' ? 'https://api3.speedai.chat/v1/rewrite' : 'https://api3.speedai.chat/v1/deai';
 
@@ -306,7 +502,7 @@
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        username: usernameInput.value,  // Replace with actual API key
+        username: username,
         info: text,
         lang: lang,
         type: type,
@@ -315,14 +511,14 @@
     .then(response => response.json())
     .then(data => {
       if (data.code === 200) {
-        output.innerHTML = `<pre id="textToCopy">${data.rewrite}</pre>`;
+        output.innerHTML = `<p class="success">处理完成！</p><pre id="textToCopy">${data.rewrite}</pre>`;
       } else {
-        output.innerHTML = `<p style="color:red;">Error processing text: ${data.message}</p>`;
+        output.innerHTML = `<p class="error">文本处理错误: ${data.message || '未知错误'}</p>`;
       }
     })
     .catch(error => {
       console.error('Error:', error);
-      output.innerHTML = `<p style="color:red;">Error occurred during text processing.</p>`;
+      output.innerHTML = `<p class="error">文本处理过程中发生错误，请重试。</p>`;
     });
   };
 </script>
