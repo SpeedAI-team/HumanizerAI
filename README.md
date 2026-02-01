@@ -56,10 +56,9 @@
 
 ---
 
-所有请求都需要在header中添加token
-```
- 'Authorization': `Bearer ${token}`
-```
+本服务**不使用 Token 鉴权**：
+- HTTP 接口直接使用 `username`（即 apikey）即可
+- WS 进度订阅接口的 query 参数名仍为 `token`，但其值约定为 **apikey(username)**（即：`token=apikey`）
 
 ### 1. **文件下载接口**
 
@@ -292,8 +291,6 @@ uploadDocumentPostButton.onclick = function () {
   const type_ = typeSelect.value;
   const changedOnly = changedOnlyCheckbox.checked;
   const skipEnglish = skipEnglishCheckbox.checked;
-  const token = tokenInput.value;
-
   if (!file || !username) {
     output.innerHTML = `<p style="color:red;">Please select a file and provide an API key.</p>`;
     return;
@@ -315,9 +312,6 @@ uploadDocumentPostButton.onclick = function () {
 
   fetch("https://api3.speedai.chat/v1/docx", {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    },
     body: formData
   })
   .then(response => response.json())
@@ -482,12 +476,10 @@ uploadDocumentPostButton.onclick = function () {
 ```javascript
 // Function to check document processing status
 function checkProcessingStatus(docId) {
-  const token = tokenInput.value;
   fetch("https://api3.speedai.chat/v1/docx/status", {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({ user_doc_id: docId })
   })
@@ -522,7 +514,7 @@ function checkProcessingStatus(docId) {
 用 WebSocket 订阅 docx 处理进度与逐段结果，替代轮询 `/v1/docx/status`。
 
 **关键点：**
-- `token`：放在 query 参数里（与 Header Bearer token 同值）
+- `token`：放在 query 参数里，但其值约定为 **apikey(username)**（即：`token=apikey`）
 - `doc_id`：`/v1/docx` 返回的 `user_doc_id`
 - 典型推送：`type=status|stage|progress|paragraph|need_pay|completed|error`（`ping` 可忽略）
 
@@ -530,7 +522,7 @@ function checkProcessingStatus(docId) {
 
 ```javascript
 function startDocxProgressWS(docId) {
-  const token = tokenInput.value;
+  const token = usernameInput.value; // 约定：token=apikey(username)
   const url = new URL("https://api3.speedai.chat/v1/docx/progress");
   url.protocol = "wss:";
   url.searchParams.set("token", token);

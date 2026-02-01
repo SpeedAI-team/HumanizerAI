@@ -271,10 +271,6 @@
       <label for="username">API Key:</label>
       <input type="text" id="username" placeholder="请输入您的 API key" />
     </div>
-    <div class="form-group">
-      <label for="token">Token:</label>
-      <input type="text" id="token" placeholder="请输入您的 token" />
-    </div>
   </div>
 
   <div class="form-group">
@@ -340,7 +336,6 @@
   const reportFileInput = document.getElementById('reportFileInput');
   const apiBaseUrlInput = document.getElementById('apiBaseUrl');
   const usernameInput = document.getElementById('username');
-  const tokenInput = document.getElementById('token');
   const modeSelect = document.getElementById('modeSelect');
   const typeSelect = document.getElementById('typeSelect');
   const skipEnglishCheckbox = document.getElementById('skipEnglish');
@@ -377,10 +372,9 @@
     const mode = modeSelect.value;
     const type_ = typeSelect.value;
     const skipEnglish = skipEnglishCheckbox.checked;
-    const token = tokenInput.value;
 
-    if (!file || !username || !token) {
-      output.innerHTML = `<p class="error">请选择文件并提供 API key 和 Token。</p>`;
+    if (!file || !username) {
+      output.innerHTML = `<p class="error">请选择文件并提供 API key。</p>`;
       return;
     }
 
@@ -410,9 +404,6 @@
 
     fetch(docxUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
       body: formData
     })
     .then(response => response.json())
@@ -450,8 +441,9 @@
 
   // Prefer WS progress to avoid polling /v1/docx/status. Keep polling as fallback.
   function startDocxProgressWS(docId) {
-    const token = tokenInput.value;
-    if (!token || !docId) return;
+    // 注意：后端不鉴权 Bearer token，这里的 query 参数名仍叫 token，但值约定为 apikey(username)
+    const apiKey = (usernameInput.value || '').trim();
+    if (!apiKey || !docId) return;
 
     // close old ws if any
     try { if (progressWs) progressWs.close(); } catch (_) {}
@@ -465,7 +457,7 @@
       return;
     }
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    url.searchParams.set("token", token);
+    url.searchParams.set("token", apiKey);
     url.searchParams.set("doc_id", docId);
     // optional: chunk size for history snapshot
     url.searchParams.set("snapshot_chunk_size", "50");
@@ -570,7 +562,6 @@
 
   // Function to check document processing status
   function checkProcessingStatus(docId) {
-    const token = tokenInput.value;
     let statusUrl;
     try {
       statusUrl = apiUrl('/v1/docx/status');
@@ -581,8 +572,7 @@
     fetch(statusUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ user_doc_id: docId })
     })
@@ -606,7 +596,6 @@
 
   // Function to download the processed file
   function downloadFile(user_doc_id, fileName) {
-    const token = tokenInput.value;
     let downloadUrl;
     try {
       downloadUrl = apiUrl('/v1/download');
@@ -622,8 +611,7 @@
     fetch(downloadUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(requestData),
     })
@@ -674,7 +662,6 @@
     const mode = modeSelect.value;
     const type = typeSelect.value;
     const lang = languageSelect.value;
-    const token = tokenInput.value;
     const username = usernameInput.value;
 
     if (!text) {
@@ -682,8 +669,8 @@
       return;
     }
 
-    if (!username || !token) {
-      alert("请提供 API key 和 Token。");
+    if (!username) {
+      alert("请提供 API key。");
       return;
     }
 
@@ -700,8 +687,7 @@
     fetch(textApiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         username: username,
