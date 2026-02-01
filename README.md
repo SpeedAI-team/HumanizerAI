@@ -251,6 +251,24 @@
 
 ---
 
+### 推荐接入方式（两种）
+
+#### 方式 A（推荐）：先 cost → 再上传报告 → 再 start（分步）
+
+适用场景：你希望**明确拿到 doc_id**、可独立管理/复用报告文件、或后续要走更复杂的分步流程。
+
+- **Step 1**：`POST /v1/cost` 上传 docx 计算 cost，拿到 `doc_id`
+- **Step 2（可选）**：`POST /v1/docx/report` 上传报告文件（PDF/HTML），绑定到 `doc_id`
+- **Step 3**：`POST /v1/docx/start` 启动处理（如需使用报告过滤，传 `report_name`）
+- **Step 4（推荐）**：WS 订阅进度：`GET wss://.../v1/docx/progress?token=apikey&doc_id=...`
+
+#### 方式 B（快捷）：直接 /v1/docx 上传 docx + 报告并启动
+
+适用场景：你希望**一次请求直接启动**；后端会返回 `user_doc_id`，再用 WS 订阅进度。
+
+- `POST /v1/docx`：FormData 里同时带 `file`（docx）+（可选）`report_file`
+- 返回 `user_doc_id` 后：WS 订阅 `doc_id=user_doc_id`
+
 ### 5. **文档上传和处理接口**
 
 **接口地址：**

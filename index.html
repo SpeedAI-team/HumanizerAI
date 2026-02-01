@@ -278,6 +278,15 @@
     <select id="modeSelect">
       <option value="rewrite">降重</option>
       <option value="deai">降AIGC</option>
+      <option value="polish">润色</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="demoModeSelect">演示模式:</label>
+    <select id="demoModeSelect">
+      <option value="direct">方式B（快捷）：直接 /v1/docx 上传文档+报告并启动</option>
+      <option value="stepwise">方式A（推荐）：先 /v1/cost → 再 /v1/docx/report → 再 /v1/docx/start</option>
     </select>
   </div>
 
@@ -337,6 +346,7 @@
   const apiBaseUrlInput = document.getElementById('apiBaseUrl');
   const usernameInput = document.getElementById('username');
   const modeSelect = document.getElementById('modeSelect');
+  const demoModeSelect = document.getElementById('demoModeSelect');
   const typeSelect = document.getElementById('typeSelect');
   const skipEnglishCheckbox = document.getElementById('skipEnglish');
   const uploadDocumentPostButton = document.getElementById('uploadDocumentPost');
@@ -372,13 +382,21 @@
     const mode = modeSelect.value;
     const type_ = typeSelect.value;
     const skipEnglish = skipEnglishCheckbox.checked;
+    const demoMode = demoModeSelect.value;
 
     if (!file || !username) {
       output.innerHTML = `<p class="error">请选择文件并提供 API key。</p>`;
       return;
     }
 
-    output.innerHTML = `<p>正在上传文档...</p>`;
+    // 根据演示模式走不同流程
+    if (demoMode === 'stepwise') {
+      output.innerHTML = `<p>方式A（分步）开始：先计算 cost...</p>`;
+      runStepwiseFlow({ file, reportFile, username, mode, type_, skipEnglish });
+      return;
+    }
+
+    output.innerHTML = `<p>方式B（快捷）开始：正在上传文档...</p>`;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -424,6 +442,105 @@
       output.innerHTML = `<p class="error">文档上传失败，请检查网络连接。</p>`;
     });
   };
+
+  async function runStepwiseFlow({ file, reportFile, username, mode, type_, skipEnglish }) {
+    // 方式A（推荐）：cost -> (optional) report -> start -> ws progress
+    // 约定：后端不鉴权 Bearer token；WS query 的 token=apikey(username)
+    try {
+      // Step 1: /v1/cost
+      let costUrl;
+      try {
+        costUrl = apiUrl('/v1/cost');
+      } catch (e) {
+        output.innerHTML = `<p class="error">${e.message}</p>`;
+        return;
+      }
+
+      const costForm = new FormData();
+      costForm.append("file", file);
+      costForm.append("FileName", file.name);
+      costForm.append("username", username);
+      costForm.append("mode", mode);
+      costForm.append("type_", type_);
+      costForm.append("changed_only", false);
+      costForm.append("skip_english", skipEnglish);
+
+      const costResp = await fetch(costUrl, { method: 'POST', body: costForm });
+      const costData = await costResp.json();
+      if (costData.status !== 'success') {
+        output.innerHTML = `<p class="error">cost 失败：${escapeHtml(costData.error || 'unknown')}</p>`;
+        return;
+      }
+
+      const doc_id = costData.doc_id;
+      const costVal = costData.cost;
+      output.innerHTML = `<p class="success">cost 成功：doc_id=${escapeHtml(doc_id)}，cost=${escapeHtml(costVal)}</p>
+        <p>实时进度（WS）：</p>
+        <div class="progress"><div id="progressBar" class="progress-bar" style="width: 0%">0%</div></div>
+        <div id="wsLog" style="margin-top: 12px;"></div>`;
+
+      // Step 2 (optional): /v1/docx/report
+      if (reportFile) {
+        appendWsLog(`<p>上传报告中...</p>`);
+        let reportUrl;
+        try {
+          reportUrl = apiUrl('/v1/docx/report');
+        } catch (e) {
+          appendWsLog(`<p class="error">${e.message}</p>`);
+          return;
+        }
+
+        const reportForm = new FormData();
+        reportForm.append("doc_id", doc_id);
+        reportForm.append("file", reportFile);
+        reportForm.append("FileName", reportFile.name);
+
+        const reportResp = await fetch(reportUrl, { method: 'POST', body: reportForm });
+        const reportData = await reportResp.json();
+        if (reportData.status !== 'success') {
+          appendWsLog(`<p class="error">报告上传失败：${escapeHtml(reportData.error || 'unknown')}</p>`);
+          return;
+        }
+        appendWsLog(`<p class="success">报告上传成功：platform=${escapeHtml(reportData.platform || '')}</p>`);
+      } else {
+        appendWsLog(`<p>未上传报告（将不做报告过滤）。</p>`);
+      }
+
+      // Step 3: /v1/docx/start
+      appendWsLog(`<p>启动处理...</p>`);
+      let startUrl;
+      try {
+        startUrl = apiUrl('/v1/docx/start');
+      } catch (e) {
+        appendWsLog(`<p class="error">${e.message}</p>`);
+        return;
+      }
+
+      const startForm = new FormData();
+      startForm.append("doc_id", doc_id);
+      startForm.append("FileName", file.name);
+      startForm.append("username", username);
+      startForm.append("mode", mode);
+      startForm.append("type_", type_);
+      startForm.append("changed_only", false);
+      startForm.append("skip_english", skipEnglish);
+      // 复用 report/{doc_id}{ext}：传 report_name 让后端推断 ext
+      if (reportFile) startForm.append("report_name", reportFile.name);
+
+      const startResp = await fetch(startUrl, { method: 'POST', body: startForm });
+      const startData = await startResp.json();
+      if (startData.status !== 'processing') {
+        appendWsLog(`<p class="error">start 失败：${escapeHtml(startData.error || 'unknown')}</p>`);
+        return;
+      }
+
+      // Step 4: ws progress (doc_id used as docId)
+      appendWsLog(`<p class="success">start 成功：doc_id=${escapeHtml(doc_id)}，已连接 WS 等待推送...</p>`);
+      startDocxProgressWS(doc_id);
+    } catch (e) {
+      output.innerHTML = `<p class="error">分步流程异常：${escapeHtml(e.message || String(e))}</p>`;
+    }
+  }
 
   function appendWsLog(html) {
     const el = document.getElementById('wsLog');
