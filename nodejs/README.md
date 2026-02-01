@@ -8,6 +8,8 @@ Node.js client library for SpeedAI document and text processing API.
 npm install
 ```
 
+> 说明：实时进度订阅需要 WebSocket。我们已加入依赖 `ws`（用于 Node 环境）。
+
 ## Quick Start
 
 修改example.js中的API_KEY和TOKEN，然后运行
@@ -71,8 +73,32 @@ Upload and process a document.
 const response = await client.uploadDocument('./document.docx', {
   mode: 'rewrite',      // 'rewrite' or 'deai'
   type: 'zhiwang',      // 'zhiwang', 'weipu', or 'gezida'
-  skipEnglish: true     // Skip English content
+  skipEnglish: true,    // Skip English content
+  reportPath: './report.pdf' // 可选：报告文件（PDF/HTML），用于报告匹配过滤
 });
+```
+
+#### getCost(filePath, options)
+
+计算文档 cost（对应 AISurvey 新接口 `POST /v1/cost`），也支持可选上传报告文件：
+
+```javascript
+const r = await client.getCost('./document.docx', {
+  mode: 'rewrite',
+  type: 'zhiwang',
+  skipEnglish: true,
+  reportPath: './report.pdf' // 可选：报告文件（PDF/HTML）
+});
+console.log(r);
+```
+
+#### uploadReportFile(docId, reportPath, fileName)
+
+分步上传报告文件（对应 AISurvey 新接口 `POST /v1/docx/report`）。
+
+```javascript
+const r = await client.uploadReportFile(docId, './report.pdf');
+console.log(r);
 ```
 
 #### checkDocumentStatus(docId)
@@ -108,6 +134,25 @@ const docId = await client.processDocumentWithPolling(
     console.log(`Progress: ${progress}%`);
   }
 );
+```
+
+#### subscribeDocxProgress(docId, options)
+
+用 WebSocket 订阅 docx 实时进度（对应 AISurvey `GET ws /v1/docx/progress?token&doc_id`），替代轮询 `/v1/docx/status`。
+
+```javascript
+const handle = client.subscribeDocxProgress(docId, {
+  onProgress: (p, stage) => console.log('progress', p, stage),
+  onEvent: (evt) => {
+    if (evt.type === 'paragraph' && evt.status === 'processed') {
+      console.log('paragraph processed', evt.index);
+    }
+    if (evt.type === 'completed') {
+      console.log('completed');
+      handle.close();
+    }
+  }
+});
 ```
 
 ## Complete Example

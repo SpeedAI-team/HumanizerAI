@@ -264,6 +264,10 @@
   <div class="credentials-section">
     <h2>认证信息</h2>
     <div class="form-group">
+      <label for="apiBaseUrl">API Base URL:</label>
+      <input type="text" id="apiBaseUrl" placeholder="例如：https://api3.speedai.chat" value="https://api3.speedai.chat" />
+    </div>
+    <div class="form-group">
       <label for="username">API Key:</label>
       <input type="text" id="username" placeholder="请输入您的 API key" />
     </div>
@@ -312,6 +316,12 @@
       <input type="file" id="fileInput" accept=".doc, .docx" />
     </div>
   </div>
+  <div class="form-group">
+    <label for="reportFileInput">可选：上传检测报告（PDF/HTML，用于报告匹配过滤）:</label>
+    <div class="file-input-wrapper">
+      <input type="file" id="reportFileInput" accept=".pdf,.html,.htm" />
+    </div>
+  </div>
   <button id="uploadDocumentPost" class="success-btn">处理文档</button>
 
   <h2>文本处理</h2>
@@ -327,6 +337,8 @@
 
 <script>
   const fileInput = document.getElementById('fileInput');
+  const reportFileInput = document.getElementById('reportFileInput');
+  const apiBaseUrlInput = document.getElementById('apiBaseUrl');
   const usernameInput = document.getElementById('username');
   const tokenInput = document.getElementById('token');
   const modeSelect = document.getElementById('modeSelect');
@@ -338,10 +350,29 @@
   const output = document.getElementById('output');
   const languageSelect = document.getElementById('languageSelect');
   let docId;
+  let progressWs = null;
+
+  function getApiBaseUrl() {
+    const raw = (apiBaseUrlInput?.value || 'https://api3.speedai.chat').trim();
+    if (!raw) return 'https://api3.speedai.chat';
+    // remove trailing slash
+    const base = raw.endsWith('/') ? raw.slice(0, -1) : raw;
+    // basic validation
+    if (!/^https?:\/\//i.test(base)) {
+      throw new Error('API Base URL 必须以 http:// 或 https:// 开头');
+    }
+    return base;
+  }
+
+  function apiUrl(pathname) {
+    const base = getApiBaseUrl();
+    return new URL(pathname, base).toString();
+  }
 
   // Function for handling document upload via POST
   uploadDocumentPostButton.onclick = function () {
     const file = fileInput.files[0];
+    const reportFile = reportFileInput.files[0];
     const username = usernameInput.value;
     const mode = modeSelect.value;
     const type_ = typeSelect.value;
@@ -363,8 +394,21 @@
     formData.append("type_", type_);
     formData.append("changed_only", false);
     formData.append("skip_english", skipEnglish);
+    // 可选：随文档一起上传报告文件（AISurvey 最新后端支持 report_file/ReportFileName）
+    if (reportFile) {
+      formData.append("report_file", reportFile);
+      formData.append("ReportFileName", reportFile.name);
+    }
 
-    fetch("https://api3.speedai.chat/v1/docx", {
+    let docxUrl;
+    try {
+      docxUrl = apiUrl('/v1/docx');
+    } catch (e) {
+      output.innerHTML = `<p class="error">${e.message}</p>`;
+      return;
+    }
+
+    fetch(docxUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -375,8 +419,11 @@
     .then(data => {
       if (data.status === "processing") {
         docId = data.user_doc_id;
-        output.innerHTML = `<p class="success">文档上传成功！处理中... ID: ${docId}</p>`;
-        checkProcessingStatus(docId);
+        output.innerHTML = `<p class="success">文档上传成功！已开始处理。ID: ${docId}</p>
+          <p>实时进度（WS）：</p>
+          <div class="progress"><div id="progressBar" class="progress-bar" style="width: 0%">0%</div></div>
+          <div id="wsLog" style="margin-top: 12px;"></div>`;
+        startDocxProgressWS(docId);
       } else {
         output.innerHTML = `<p class="error">错误: ${data.error || '上传失败'}</p>`;
       }
@@ -387,10 +434,151 @@
     });
   };
 
+  function appendWsLog(html) {
+    const el = document.getElementById('wsLog');
+    if (!el) return;
+    el.innerHTML += html;
+  }
+
+  function setProgress(percent) {
+    const p = Math.max(0, Math.min(100, Number(percent || 0)));
+    const bar = document.getElementById('progressBar');
+    if (!bar) return;
+    bar.style.width = `${p}%`;
+    bar.textContent = `${p}%`;
+  }
+
+  // Prefer WS progress to avoid polling /v1/docx/status. Keep polling as fallback.
+  function startDocxProgressWS(docId) {
+    const token = tokenInput.value;
+    if (!token || !docId) return;
+
+    // close old ws if any
+    try { if (progressWs) progressWs.close(); } catch (_) {}
+
+    let url;
+    try {
+      url = new URL(apiUrl('/v1/docx/progress'));
+    } catch (e) {
+      appendWsLog(`<p class="error">${e.message}</p>`);
+      checkProcessingStatus(docId);
+      return;
+    }
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.searchParams.set("token", token);
+    url.searchParams.set("doc_id", docId);
+    // optional: chunk size for history snapshot
+    url.searchParams.set("snapshot_chunk_size", "50");
+
+    progressWs = new WebSocket(url.toString());
+
+    progressWs.onopen = () => {
+      appendWsLog(`<p>WS 已连接，等待进度推送...</p>`);
+    };
+
+    progressWs.onmessage = (evt) => {
+      let msg;
+      try { msg = JSON.parse(evt.data); } catch (e) { return; }
+      const type = msg.type;
+
+      if (type === "ping") return;
+      if (type === "pong") return;
+
+      if (type === "error") {
+        appendWsLog(`<p class="error">WS 错误: ${msg.error || 'unknown'}</p>`);
+        // fallback to polling
+        checkProcessingStatus(docId);
+        try { progressWs.close(); } catch (_) {}
+        return;
+      }
+
+      if (type === "status") {
+        const st = msg.data || {};
+        if (st.progress != null) setProgress(st.progress);
+        if (st.status === "completed") {
+          appendWsLog(`<p class="success">文档处理完成！</p>`);
+          downloadFile(docId, "处理后的文档");
+          try { progressWs.close(); } catch (_) {}
+        } else if (st.status === "error") {
+          appendWsLog(`<p class="error">处理失败: ${st.error || st.message || 'unknown'}</p>`);
+          try { progressWs.close(); } catch (_) {}
+        }
+        return;
+      }
+
+      if (type === "queued") {
+        appendWsLog(`<p>已排队等待处理...</p>`);
+        return;
+      }
+
+      if (type === "stage") {
+        appendWsLog(`<p>阶段: ${msg.stage || 'unknown'}</p>`);
+        return;
+      }
+
+      if (type === "progress") {
+        if (msg.progress != null) setProgress(msg.progress);
+        return;
+      }
+
+      if (type === "paragraph") {
+        const idx = msg.index;
+        const status = msg.status || "";
+        if (status === "processed") {
+          appendWsLog(`<p><b>段落 ${idx}</b> 已处理（cost=${msg.cost ?? ''}）</p>`);
+        } else if (status === "skipped") {
+          appendWsLog(`<p><b>段落 ${idx}</b> 跳过：${msg.skip_reason || ''}</p>`);
+        } else if (status === "error") {
+          appendWsLog(`<p class="error"><b>段落 ${idx}</b> 出错：${msg.detail || msg.error || ''}</p>`);
+        }
+        return;
+      }
+
+      if (type === "need_pay") {
+        appendWsLog(`<p class="error">${msg.message || '点数不足，已暂停处理'}</p>`);
+        try { progressWs.close(); } catch (_) {}
+        return;
+      }
+
+      if (type === "completed") {
+        setProgress(100);
+        appendWsLog(`<p class="success">文档处理完成！</p>`);
+        downloadFile(docId, "处理后的文档");
+        try { progressWs.close(); } catch (_) {}
+        return;
+      }
+
+      // history snapshot messages: doc_snapshot_meta/doc_snapshot_chunk/doc_meta
+      // For now we just ignore or log lightly to avoid massive DOM ops.
+      if (type === "doc_meta") {
+        return;
+      }
+      if (type === "doc_snapshot_meta" || type === "doc_snapshot_chunk") {
+        return;
+      }
+    };
+
+    progressWs.onerror = () => {
+      appendWsLog(`<p class="error">WS 连接异常，已切换为轮询 status。</p>`);
+      checkProcessingStatus(docId);
+    };
+
+    progressWs.onclose = () => {
+      // no-op
+    };
+  }
+
   // Function to check document processing status
   function checkProcessingStatus(docId) {
     const token = tokenInput.value;
-    fetch("https://api3.speedai.chat/v1/docx/status", {
+    let statusUrl;
+    try {
+      statusUrl = apiUrl('/v1/docx/status');
+    } catch (e) {
+      output.innerHTML = `<p class="error">${e.message}</p>`;
+      return;
+    }
+    fetch(statusUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -419,7 +607,13 @@
   // Function to download the processed file
   function downloadFile(user_doc_id, fileName) {
     const token = tokenInput.value;
-    const downloadUrl = "https://api3.speedai.chat/v1/download";
+    let downloadUrl;
+    try {
+      downloadUrl = apiUrl('/v1/download');
+    } catch (e) {
+      output.innerHTML += `<p class="error">${e.message}</p>`;
+      return;
+    }
     const requestData = {
       user_doc_id: user_doc_id,
       file_name: fileName
@@ -495,9 +689,15 @@
 
     output.innerHTML = `<p>正在处理文本...</p>`;
 
-    const apiUrl = mode === 'rewrite' ? 'https://api3.speedai.chat/v1/rewrite' : 'https://api3.speedai.chat/v1/deai';
+    let textApiUrl;
+    try {
+      textApiUrl = mode === 'rewrite' ? apiUrl('/v1/rewrite') : apiUrl('/v1/deai');
+    } catch (e) {
+      output.innerHTML = `<p class="error">${e.message}</p>`;
+      return;
+    }
 
-    fetch(apiUrl, {
+    fetch(textApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

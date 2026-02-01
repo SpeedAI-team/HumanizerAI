@@ -123,7 +123,7 @@
 
 | 参数名称 | 类型   | 必填 | 说明                                    |
 | -------- | ------ | ---- | --------------------------------------- |
-| `apikey` | String | 是   | API密钥                                 |
+| `username` | String | 是   | API密钥                                 |
 | `info`   | String | 是   | 需要重写的文本                          |
 | `lang`   | String | 是   | 文本语言 (`Chinese` 或 `English`)       |
 | `type`   | String | 是   | 重写类型 (`zhiwang`, `weipu`, `gezida`) |
@@ -132,7 +132,7 @@
 
 ```json
 {
-    "apikey": "test_api",
+    "username": "test_api",
     "info": "有人说："学生是一艘轮船，在知识的海洋中航行，能否顺利到达成功的彼岸，教师这个航标起到导航的关键作用。",
     "lang": "Chinese",
     "type": "zhiwang"
@@ -176,7 +176,7 @@
 
 | 参数名称 | 类型   | 必填 | 说明                                    |
 | -------- | ------ | ---- | --------------------------------------- |
-| `apikey` | String | 是   | API密钥                                 |
+| `username` | String | 是   | API密钥                                 |
 | `info`   | String | 是   | 需要降AI处理的文本                      |
 | `lang`   | String | 是   | 文本语言 (`Chinese` 或 `English`)       |
 | `type`   | String | 是   | 降AI类型 (`zhiwang`, `weipu`, `gezida`) |
@@ -185,7 +185,7 @@
 
 ```json
 {
-    "apikey": "test_api",
+    "username": "test_api",
     "info": "有人说："学生是一艘轮船，在知识的海洋中航行，能否顺利到达成功的彼岸，教师这个航标起到导航的关键作用。",
     "lang": "Chinese",
     "type": "zhiwang"
@@ -212,7 +212,47 @@
 
 ---
 
-### 4. **文档上传和处理接口**
+### 4. **文档 cost 计算接口（支持可选上传报告）**
+
+**接口地址：**
+
+- `POST https://api3.speedai.chat/v1/cost`
+
+**功能：**
+上传 docx 并计算 cost（返回 `doc_id`）。可选上传报告文件（`report_file/ReportFileName`），后端会保存到 report 目录（用于后续分步流程复用）。
+
+**请求方式：**
+
+- `POST`（FormData）
+
+**请求参数：**
+
+| 参数名称         | 类型    | 必填 | 说明 |
+| --------------- | ------- | ---- | ---- |
+| `file`          | File    | 是   | docx 文件 |
+| `FileName`      | String  | 是   | docx 原始文件名 |
+| `username`      | String  | 是   | API key |
+| `mode`          | String  | 是   | `rewrite` / `deai` / `polish` |
+| `type_`         | String  | 是   | `zhiwang`/`weipu`/`gezida`/`daya`/`turnitin`/`rewrite_*`/`rewrite_deep_*` |
+| `changed_only`  | Boolean | 否   | 保留字段，通常传 `false` |
+| `skip_english`  | Boolean | 否   | 是否跳过英文 |
+| `report_file`   | File    | 否   | 可选：报告文件（PDF/HTML） |
+| `ReportFileName`| String  | 否   | 可选：报告原始文件名 |
+
+**响应示例：**
+
+```json
+{
+  "status": "success",
+  "cost": 1234,
+  "doc_id": "xxxx-uuid",
+  "report_uploaded": true
+}
+```
+
+---
+
+### 5. **文档上传和处理接口**
 
 **接口地址：**
 
@@ -233,10 +273,12 @@
 | `file`         | File    | 是   | 上传的文档文件                                |
 | `FileName`     | String  | 是   | 上传文件的名称                                |
 | `username`     | String  | 是   | 用户名/API密钥                                |
-| `mode`         | String  | 是   | 处理模式 (`rewrite` 或 `deai`)                |
-| `type_`        | String  | 是   | 处理类型 (`zhiwang`, `weipu`, `gezida`)       |
+| `mode`         | String  | 是   | 处理模式：`rewrite` / `deai` / `polish`        |
+| `type_`        | String  | 是   | 处理类型：`zhiwang` / `weipu` / `gezida` / `daya` / `turnitin` / `rewrite_*` / `rewrite_deep_*` |
 | `changed_only` | Boolean | 否   | 是否仅返回修改部分（`true` 为仅返回修改部分） |
 | `skip_english` | Boolean | 否   | 是否跳过英文部分（`true` 为不处理英文部分）   |
+| `report_file`  | File    | 否   | 可选：检测报告文件（PDF/HTML），用于报告匹配过滤 |
+| `ReportFileName` | String | 否   | 可选：报告原始文件名（用于取后缀） |
 
 **请求示例：**
 
@@ -244,6 +286,7 @@
 // Function for handling document upload via POST
 uploadDocumentPostButton.onclick = function () {
   const file = fileInput.files[0];
+  const reportFile = reportFileInput.files[0]; // 可选：报告文件（PDF/HTML）
   const username = usernameInput.value;
   const mode = modeSelect.value;
   const type_ = typeSelect.value;
@@ -264,6 +307,11 @@ uploadDocumentPostButton.onclick = function () {
   formData.append("type_", type_);
   formData.append("changed_only", changedOnly);
   formData.append("skip_english", skipEnglish);
+  // 可选：上传报告文件（PDF/HTML）
+  if (reportFile) {
+    formData.append("report_file", reportFile);
+    formData.append("ReportFileName", reportFile.name);
+  }
 
   fetch("https://api3.speedai.chat/v1/docx", {
     method: 'POST',
@@ -277,7 +325,8 @@ uploadDocumentPostButton.onclick = function () {
     if (data.status === "processing") {
       docId = data.user_doc_id;
       output.innerHTML = `<p>Document uploaded. Processing started with ID: ${docId}</p>`;
-      checkProcessingStatus(docId);
+      // 推荐：使用 WS 实时进度（/v1/docx/progress），避免轮询
+      startDocxProgressWS(docId);
     } else {
       output.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
     }
@@ -311,15 +360,76 @@ uploadDocumentPostButton.onclick = function () {
 
 ---
 
+### 6. **分步上传报告文件接口（可选）**
 
-### 5. **文档处理状态检查接口**
+**接口地址：**
+
+- `POST https://api3.speedai.chat/v1/docx/report`
+
+**功能：**
+分步上传“检测报告”（PDF/HTML），只负责落盘保存到 `report/`，命名规则：`report/{doc_id}{ext}`。
+
+**请求方式：**
+
+- `POST`（FormData）
+
+**请求参数：**
+
+| 参数名称 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `doc_id` | String | 是 | 文档 ID（通常来自 `/v1/cost` 的 `doc_id` 或 `/v1/docx` 的 `user_doc_id`） |
+| `file` | File | 是 | 报告文件（PDF/HTML） |
+| `FileName` | String | 是 | 报告原始文件名（后端用于取后缀 + 安全校验） |
+
+**响应示例：**
+
+```json
+{
+  "status": "success",
+  "doc_id": "xxxx-uuid",
+  "report_path": "report/xxxx-uuid.pdf",
+  "platform": "zhiwang"
+}
+```
+
+---
+
+### 7. **分步启动 docx 处理接口（可选）**
+
+**接口地址：**
+
+- `POST https://api3.speedai.chat/v1/docx/start`
+
+**功能：**
+用于“分步流程”启动处理：docx 文件需已在后端落盘（例如已上传到 `temp_docx/{doc_id}.docx`），可通过 `report_name` 复用 `report/` 下同 `doc_id` 的报告文件用于过滤。
+
+**请求方式：**
+
+- `POST`（FormData）
+
+**请求参数：**
+
+| 参数名称 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `doc_id` | String | 是 | 文档 ID |
+| `FileName` | String | 是 | docx 原始文件名（展示用途） |
+| `username` | String | 是 | API key |
+| `mode` | String | 是 | `rewrite` / `deai` / `polish` |
+| `type_` | String | 是 | `zhiwang`/`weipu`/`gezida`/`daya`/`turnitin`/`rewrite_*`/`rewrite_deep_*` |
+| `changed_only` | Boolean | 否 | 是否仅返回修改部分 |
+| `skip_english` | Boolean | 否 | 是否跳过英文 |
+| `report_name` | String | 否 | 报告文件名或后缀（如 `xxx.pdf` / `.pdf` / `pdf`），用于复用 `report/{doc_id}{ext}` |
+
+---
+
+### 8. **文档处理状态检查接口（fallback）**
 
 **接口地址：**
 
 - `POST https://api3.speedai.chat/v1/docx/status`
 
 **功能：**
-检查已上传文档的处理状态，可用于轮询获取处理进度。
+检查已上传文档的处理状态。**不推荐轮询**，建议优先使用下面的 **WS 实时进度接口**；本接口保留作为 fallback/兼容用途。
 
 **请求方式：**
 
@@ -402,6 +512,51 @@ function checkProcessingStatus(docId) {
 
 ---
 
+### 9. **文档实时进度（WebSocket，推荐）**
+
+**接口地址：**
+
+- `GET wss://api3.speedai.chat/v1/docx/progress?token=xxx&doc_id=xxx`
+
+**功能：**
+用 WebSocket 订阅 docx 处理进度与逐段结果，替代轮询 `/v1/docx/status`。
+
+**关键点：**
+- `token`：放在 query 参数里（与 Header Bearer token 同值）
+- `doc_id`：`/v1/docx` 返回的 `user_doc_id`
+- 典型推送：`type=status|stage|progress|paragraph|need_pay|completed|error`（`ping` 可忽略）
+
+**使用示例：**
+
+```javascript
+function startDocxProgressWS(docId) {
+  const token = tokenInput.value;
+  const url = new URL("https://api3.speedai.chat/v1/docx/progress");
+  url.protocol = "wss:";
+  url.searchParams.set("token", token);
+  url.searchParams.set("doc_id", docId);
+
+  const ws = new WebSocket(url.toString());
+  ws.onmessage = (evt) => {
+    const msg = JSON.parse(evt.data);
+    if (msg.type === "progress") {
+      console.log("progress", msg.progress, msg.stage);
+    } else if (msg.type === "paragraph") {
+      console.log("paragraph", msg.index, msg.status);
+    } else if (msg.type === "completed") {
+      console.log("completed");
+      ws.close();
+    } else if (msg.type === "need_pay") {
+      console.log("need_pay", msg.message);
+      ws.close();
+    } else if (msg.type === "error") {
+      console.log("error", msg.error, msg.detail);
+      ws.close();
+    }
+  };
+}
+```
+
 ### 错误代码对照表
 
 | 错误代码 | 说明                    |
@@ -421,7 +576,7 @@ function checkProcessingStatus(docId) {
 2. **是否可以只返回修改的部分？**
    - 可以，通过设置 `changed_only: true` 来控制返回内容，只返回修改的部分。
 3. **如何监控文档处理进度？**
-   - 可以使用文档处理状态检查接口，通过轮询方式获取处理进度。
+   - 推荐使用 WebSocket：`/v1/docx/progress`（实时推送进度与逐段结果）；`/v1/docx/status` 轮询仅作为 fallback。
 
 ---
 
@@ -467,7 +622,7 @@ def test_rewrite(
     response = requests.post(
         "https://api3.speedai.chat/v1/rewrite",
         json={
-            "apikey": "test_api",
+            "username": "test_api",
             "info": text,
             "lang": "Chinese",  # 可选Chinese和English
             "type": 'zhiwang',  # zhiwang weipu gezida
@@ -485,7 +640,7 @@ def test_deai(
     response = requests.post(
         "https://api3.speedai.chat/v1/deai",
         json={
-            "apikey": "test_api",
+            "username": "test_api",
             "info": text,
             "lang": "Chinese",  # 可选Chinese和English
             "type": 'zhiwang',  # zhiwang weipu gezida
@@ -502,7 +657,7 @@ async def send_file(file_path):
         # Prepare file details
         file_details = {
             "FileName": os.path.basename(file_path),
-            "apikey": "test_api",  # Replace with actual API key
+            "apikey": "test_api",  # 旧 WS(/v1/docx) 示例仍使用 apikey 字段；新进度 WS 见下方 /v1/docx/progress
             "mode": "deai",  # Replace with actual mode [rewrite deai]
             "type": "weipu",  # Replace with actual type [zhiwang weipu gezida]
             "changed_only": True,  # Set true/false, if true, only the changed text will be returned
@@ -548,6 +703,30 @@ if __name__ == '__main__':
     # 3.降AI
     test_deai()
 
+```
+
+> 推荐：不要轮询 `/v1/docx/status`，请用 WS `/v1/docx/progress` 订阅进度（与本仓库 `main.py` 的 `subscribe_docx_progress` 一致）：
+
+```python
+import asyncio
+import json
+import websockets
+
+async def subscribe_docx_progress(token: str, doc_id: str):
+    ws_url = f"wss://api3.speedai.chat/v1/docx/progress?token={token}&doc_id={doc_id}&snapshot_chunk_size=50"
+    async with websockets.connect(ws_url) as ws:
+        while True:
+            msg = json.loads(await ws.recv())
+            t = msg.get("type")
+            if t in ("ping", "pong"):
+                continue
+            if t == "progress":
+                print("progress", msg.get("progress"), "stage", msg.get("stage"))
+            elif t == "paragraph":
+                print("paragraph", msg.get("index"), msg.get("status"))
+            elif t in ("need_pay", "completed", "error"):
+                print(t, msg)
+                break
 ```
 
 ## HTML 示例

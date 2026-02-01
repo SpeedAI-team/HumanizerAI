@@ -69,13 +69,15 @@ class SpeedAIClient {
    * @param {string} options.mode - Processing mode ('rewrite' or 'deai')
    * @param {string} options.type - Platform type ('zhiwang', 'weipu', 'gezida')
    * @param {boolean} options.skipEnglish - Whether to skip English content
+   * @param {string} options.reportPath - Optional: Path to report file (PDF/HTML)
    * @returns {Promise<Object>} Response with document ID
    */
   async uploadDocument(filePath, options = {}) {
     const {
       mode = 'rewrite',
       type = 'zhiwang',
-      skipEnglish = true
+      skipEnglish = true,
+      reportPath = null
     } = options;
 
     try {
@@ -91,6 +93,14 @@ class SpeedAIClient {
       form.append('changed_only', 'false');
       form.append('skip_english', skipEnglish.toString());
 
+      // 可选：随文档一起上传报告文件（AISurvey 最新后端支持 report_file/ReportFileName）
+      if (reportPath) {
+        const reportStream = fs.createReadStream(reportPath);
+        const reportName = path.basename(reportPath);
+        form.append('report_file', reportStream, reportName);
+        form.append('ReportFileName', reportName);
+      }
+
       const response = await this.client.post('/v1/docx', form, {
         headers: {
           ...form.getHeaders()
@@ -101,6 +111,166 @@ class SpeedAIClient {
     } catch (error) {
       throw this.handleError(error);
     }
+  }
+
+  /**
+   * Upload report file step-by-step (AISurvey: POST /v1/docx/report)
+   * @param {string} docId - Document ID (used as report file name prefix on backend)
+   * @param {string} reportPath - Path to report file (PDF/HTML)
+   * @param {string} [fileName] - Optional original report filename (for extension)
+   * @returns {Promise<Object>} Response {status, doc_id, report_path, platform}
+   */
+  async uploadReportFile(docId, reportPath, fileName = null) {
+    if (!docId) throw new Error('docId is required');
+    if (!reportPath) throw new Error('reportPath is required');
+
+    try {
+      const form = new FormData();
+      const reportStream = fs.createReadStream(reportPath);
+      const reportName = fileName || path.basename(reportPath);
+
+      form.append('doc_id', docId);
+      form.append('file', reportStream, reportName);
+      // 后端用 FileName 来取后缀并做安全校验
+      form.append('FileName', reportName);
+
+      const response = await this.client.post('/v1/docx/report', form, {
+        headers: {
+          ...form.getHeaders()
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Calculate document cost (AISurvey: POST /v1/cost)
+   * @param {string} filePath - Path to the document file
+   * @param {Object} options - Options
+   * @param {string} options.mode - Processing mode ('rewrite'/'deai'/'polish'...)，后端目前主要用于记录
+   * @param {string} options.type - Platform type (zhiwang/weipu/gezida/daya/turnitin...)
+   * @param {boolean} options.skipEnglish - Whether to skip English content
+   * @param {string} options.reportPath - Optional: Path to report file (PDF/HTML)
+   * @returns {Promise<Object>} Response {status, cost, doc_id, report_uploaded}
+   */
+  async getCost(filePath, options = {}) {
+    const {
+      mode = 'rewrite',
+      type = 'zhiwang',
+      skipEnglish = true,
+      reportPath = null
+    } = options;
+
+    try {
+      const form = new FormData();
+      const fileStream = fs.createReadStream(filePath);
+      const fileName = path.basename(filePath);
+
+      form.append('file', fileStream, fileName);
+      form.append('FileName', fileName);
+      form.append('username', this.apiKey);
+      form.append('mode', mode);
+      form.append('type_', type);
+      form.append('changed_only', 'false');
+      form.append('skip_english', skipEnglish.toString());
+
+      // 可选：上传报告文件（AISurvey /v1/cost 支持 report_file/ReportFileName）
+      if (reportPath) {
+        const reportStream = fs.createReadStream(reportPath);
+        const reportName = path.basename(reportPath);
+        form.append('report_file', reportStream, reportName);
+        form.append('ReportFileName', reportName);
+      }
+
+      const response = await this.client.post('/v1/cost', form, {
+        headers: {
+          ...form.getHeaders()
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Subscribe docx progress via WebSocket (AISurvey: GET ws /v1/docx/progress?token&doc_id)
+   * @param {string} docId - Document ID
+   * @param {Object} options
+   * @param {(event: any) => void} [options.onEvent] - Receive every parsed event
+   * @param {(progress: number, stage?: string) => void} [options.onProgress] - Progress callback
+   * @param {number} [options.snapshotChunkSize] - Optional snapshot chunk size (default 50)
+   * @returns {{ close: Function }} handle
+   */
+  subscribeDocxProgress(docId, options = {}) {
+    const {
+      onEvent = null,
+      onProgress = null,
+      snapshotChunkSize = 50
+    } = options;
+
+    if (!docId) throw new Error('docId is required');
+    if (!this.token) throw new Error('token is required');
+
+    // Prefer global WebSocket (browser / newer Node). Fallback to ws package.
+    let WSImpl = globalThis.WebSocket;
+    if (!WSImpl) {
+      try {
+        WSImpl = require('ws');
+      } catch (e) {
+        throw new Error('WebSocket is not available. Please use Node >= 18 with global WebSocket or install dependency "ws".');
+      }
+    }
+
+    const base = new URL(this.baseURL);
+    base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
+    base.pathname = '/v1/docx/progress';
+    base.searchParams.set('token', this.token);
+    base.searchParams.set('doc_id', docId);
+    base.searchParams.set('snapshot_chunk_size', String(snapshotChunkSize));
+
+    const ws = new WSImpl(base.toString());
+
+    const safeEmit = (evt) => {
+      try { if (onEvent) onEvent(evt); } catch (_) {}
+      if (evt && evt.type === 'progress') {
+        try { if (onProgress) onProgress(Number(evt.progress || 0), evt.stage); } catch (_) {}
+      }
+    };
+
+    // ws (node) uses "message" event; browser WebSocket uses onmessage callback
+    if (typeof ws.on === 'function') {
+      ws.on('open', () => safeEmit({ type: 'client_open', doc_id: docId }));
+      ws.on('message', (data) => {
+        const text = Buffer.isBuffer(data) ? data.toString('utf8') : String(data);
+        try {
+          const evt = JSON.parse(text);
+          safeEmit(evt);
+        } catch (_) {}
+      });
+      ws.on('error', (err) => safeEmit({ type: 'client_error', error: String(err && err.message ? err.message : err) }));
+      ws.on('close', () => safeEmit({ type: 'client_close', doc_id: docId }));
+    } else {
+      ws.onopen = () => safeEmit({ type: 'client_open', doc_id: docId });
+      ws.onmessage = (e) => {
+        try {
+          const evt = JSON.parse(e.data);
+          safeEmit(evt);
+        } catch (_) {}
+      };
+      ws.onerror = (e) => safeEmit({ type: 'client_error', error: 'ws_error', detail: e });
+      ws.onclose = () => safeEmit({ type: 'client_close', doc_id: docId });
+    }
+
+    return {
+      close: () => {
+        try { ws.close(); } catch (_) {}
+      }
+    };
   }
 
   /**

@@ -99,6 +99,62 @@ async def send_file(file_path):
         return data['user_doc_id']
 
 
+async def subscribe_docx_progress(*, token: str, doc_id: str, base_ws: str = "wss://api3.speedai.chat"):
+    """
+    订阅 AISurvey 最新 docx 处理进度：/v1/docx/progress
+    - 连接方式：ws(s)://host/v1/docx/progress?token=xxx&doc_id=xxx
+    - 服务端推送：type=status/progress/paragraph/completed/need_pay/stage/error/...
+    """
+    token = (token or "").strip()
+    doc_id = (doc_id or "").strip()
+    if not token or not doc_id:
+        raise ValueError("token 和 doc_id 必填")
+
+    ws_url = f"{base_ws.rstrip('/')}/v1/docx/progress?token={token}&doc_id={doc_id}&snapshot_chunk_size=50"
+    async with websockets.connect(ws_url) as websocket:
+        while True:
+            raw = await websocket.recv()
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                continue
+
+            t = msg.get("type")
+            if t in ("ping", "pong"):
+                continue
+
+            # 你可以在这里做更复杂的渲染（逐段输出、进度条等）
+            if t == "progress":
+                print(f"[progress] doc_id={doc_id} {msg.get('progress')}% stage={msg.get('stage')}")
+                continue
+
+            if t == "paragraph":
+                idx = msg.get("index")
+                st = msg.get("status")
+                if st == "processed":
+                    print(f"[paragraph] #{idx} processed cost={msg.get('cost')}")
+                elif st == "skipped":
+                    print(f"[paragraph] #{idx} skipped reason={msg.get('skip_reason')}")
+                else:
+                    print(f"[paragraph] #{idx} status={st} detail={msg.get('detail') or msg.get('error')}")
+                continue
+
+            if t == "need_pay":
+                print(f"[need_pay] {msg.get('message')} hint={msg.get('hint')}")
+                break
+
+            if t == "completed":
+                print("[completed] 处理完成，可以调用 /v1/download 下载")
+                break
+
+            if t == "error":
+                print(f"[error] {msg.get('error')} detail={msg.get('detail')}")
+                break
+
+            # 其他：status/stage/doc_meta/doc_snapshot_* 等
+            print(f"[event] {msg}")
+
+
 if __name__ == '__main__':
     # 1.修改全文
     # 设置docx文件路径
@@ -107,6 +163,10 @@ if __name__ == '__main__':
     user_doc_id = asyncio.get_event_loop().run_until_complete(send_file(file_path))
     # 下载文件
     test_download_file(user_doc_id=user_doc_id, file_name="修改后论文")
+
+    # 4.（可选）订阅最新进度 WS（需要你填 token，且 doc_id 来自 /v1/docx 的返回）
+    # token = "YOUR_BEARER_TOKEN"
+    # asyncio.get_event_loop().run_until_complete(subscribe_docx_progress(token=token, doc_id=user_doc_id))
 
     # 2.重写段落
     test_rewrite()

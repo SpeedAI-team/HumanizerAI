@@ -57,6 +57,8 @@ async function processDocumentExample() {
   
   // Use the test directory document
   const docPath = 'test/原文档.docx';
+  // 可选：报告文件（PDF/HTML）
+  const reportPath = 'test/报告.pdf';
   
   // Check if file exists
   if (!fs.existsSync(docPath)) {
@@ -71,7 +73,9 @@ async function processDocumentExample() {
       {
         mode: 'rewrite',
         type: 'zhiwang',
-        skipEnglish: true
+        skipEnglish: true,
+        // reportPath 存在时，会随 /v1/docx 一起上传（report_file/ReportFileName）
+        reportPath: fs.existsSync(reportPath) ? reportPath : null
       },
       (progress, status) => {
         console.log(`Processing progress: ${progress}% - Status: ${status}`);
@@ -141,6 +145,30 @@ async function manualDocumentProcessingExample() {
   }
 }
 
+// Example 5: Get cost (optional with report)
+async function getCostExample() {
+  console.log('\n=== Get Cost Example ===');
+  const docPath = 'test/原文档.docx';
+  const reportPath = 'test/报告.pdf';
+
+  if (!fs.existsSync(docPath)) {
+    console.log('File not found:', docPath);
+    return;
+  }
+
+  try {
+    const r = await client.getCost(docPath, {
+      mode: 'rewrite',
+      type: 'zhiwang',
+      skipEnglish: true,
+      reportPath: fs.existsSync(reportPath) ? reportPath : null
+    });
+    console.log('Cost response:', r);
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+}
+
 // Run all examples
 async function runExamples() {
   // Text processing examples
@@ -149,6 +177,19 @@ async function runExamples() {
   
   // Document processing examples (uncomment to run)
   await processDocumentExample();
+  
+  // Example: Subscribe progress by WS (no polling)
+  // const uploadResponse = await client.uploadDocument('test/原文档.docx', { mode: 'rewrite', type: 'zhiwang' });
+  // const docId = uploadResponse.user_doc_id;
+  // const handle = client.subscribeDocxProgress(docId, {
+  //   onProgress: (p, stage) => console.log(`WS progress: ${p}% stage=${stage}`),
+  //   onEvent: (evt) => {
+  //     if (evt.type === 'need_pay') console.log('need_pay', evt.message);
+  //     if (evt.type === 'completed') { console.log('completed'); handle.close(); }
+  //   }
+  // });
+
+  // await getCostExample();
   // await manualDocumentProcessingExample();
 }
 
