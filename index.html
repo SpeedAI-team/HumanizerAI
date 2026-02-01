@@ -431,6 +431,15 @@
     el.innerHTML += html;
   }
 
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function setProgress(percent) {
     const p = Math.max(0, Math.min(100, Number(percent || 0)));
     const bar = document.getElementById('progressBar');
@@ -517,11 +526,24 @@
         const idx = msg.index;
         const status = msg.status || "";
         if (status === "processed") {
-          appendWsLog(`<p><b>段落 ${idx}</b> 已处理（cost=${msg.cost ?? ''}）</p>`);
+          const original = escapeHtml(msg.original || '');
+          const modified = escapeHtml(msg.modified || '');
+          const cost = escapeHtml(msg.cost ?? '');
+          appendWsLog(
+            `<details style="margin: 8px 0;">
+              <summary><b>段落 ${escapeHtml(idx)}</b> 已处理（cost=${cost}）</summary>
+              <div style="margin-top: 8px;">
+                <p style="margin-bottom: 6px;"><b>改前</b></p>
+                <pre style="max-height: 220px; overflow:auto;">${original}</pre>
+                <p style="margin: 10px 0 6px;"><b>改后</b></p>
+                <pre style="max-height: 220px; overflow:auto;">${modified}</pre>
+              </div>
+            </details>`
+          );
         } else if (status === "skipped") {
-          appendWsLog(`<p><b>段落 ${idx}</b> 跳过：${msg.skip_reason || ''}</p>`);
+          appendWsLog(`<p><b>段落 ${escapeHtml(idx)}</b> 跳过：${escapeHtml(msg.skip_reason || '')}</p>`);
         } else if (status === "error") {
-          appendWsLog(`<p class="error"><b>段落 ${idx}</b> 出错：${msg.detail || msg.error || ''}</p>`);
+          appendWsLog(`<p class="error"><b>段落 ${escapeHtml(idx)}</b> 出错：${escapeHtml(msg.detail || msg.error || '')}</p>`);
         }
         return;
       }
